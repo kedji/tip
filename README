@@ -15,7 +15,7 @@ That said, generally each TLV is a piece of a larger puzzle. This freedom to seg
 
 3. Top-Level Parcels
 
-TIP is entirely composed, at the highest layer, of externally homogeneous TLVs called "parcels".  Each parcel has a two byte type field, which identifies the nature of its contents; a six byte "length" field, which describes the length of the contained content (up to 2^48 bytes, or 256pb); and an externally opaque "value" field exactly as long as the previously specified length.  All numeric fields, regardless of byte-width, are expressed as unsigned integers in network byte order.
+TIP is entirely composed, at the highest layer, of externally homogeneous TLVs called "parcels".  Each parcel has a 2-byte type field, which identifies the nature of its contents; a 6-byte "length" field, which describes the length of the contained content (up to 2^48 bytes, or 256pb); and an externally opaque "value" field exactly as long as the previously specified length.  All numeric fields, regardless of byte-width, are expressed as unsigned integers in network byte order.
 
 The following is a real-life example of one complete top-level parcel and its contents:
 
@@ -38,11 +38,15 @@ Contains a string of data describing, in human-readable text form, the software 
 
 4.2 Content Event (0x1ACE)
 
-Contains a two-byte "event id" followed by a concatenation of quasi-TLVs describing the event's attributes:
+Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describing the event's attributes:
 
-+------ 2 ------+---- 1 ----+---------- 4 ----------+-- "length" --+
-|    attr id    | attr type |  attr value's length  |  attr value  | ...
-+---------------+-----------+-----------------------+--------------+
++------ 2 ------+
+|   event id    |  +
++---------------+ 
+
++------ 2 ------+------ 2 ------+---------- 4 ----------+-- "length" --+
+|    attr id    |   attr type   |  attr value's length  |  attr value  | ...
++---------------+---------------+-----------------------+--------------+
 
 The "attr type" is a 1-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", and an attr type of 1 means "string data".  String data may either be human readable or binary - no distinction is made.  Human readable strings are not NULL-terminated.
 
