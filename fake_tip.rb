@@ -11,9 +11,9 @@ end
 
 # create a fake event attribute
 def attr(id, val)
-  type = 1.chr
+  type = nbo(1, 2)
   if val.class <= Integer
-    type = 0.chr
+    type = nbo(0, 2)
     val = nbo(val, 8)
   end
   "#{nbo(id, 2)}#{type}#{nbo(val.length, 4)}#{val}"

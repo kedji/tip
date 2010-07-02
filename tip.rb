@@ -61,18 +61,18 @@ class TIP
     event = { 'event_name' => event_id }
 
     # Now get the attribute values
-    while data.length >= 7 and data.length - nbo(data[3, 4]) >= 7
-      length = nbo(data[3, 4])
+    while data.length >= 8 and data.length - nbo(data[4, 4]) >= 8
+      length = nbo(data[4, 4])
       attr_id = nbo(data[0, 2])
       attr_id = @attr_dict[attr_id] || attr_id
-      attr_val = data[7, length]
-      attr_val = nbo(attr_val) if data[2] == 0
+      attr_val = data[8, length]
+      attr_val = nbo(attr_val) if data[3] == 0
       
       # Perform attribute value translation
       # ADD CODE HERE
 
       event[attr_id] = attr_val
-      data[0, 7 + length] = ''
+      data[0, 8 + length] = ''
     end
     @callback.call(event) if @callback
   end
