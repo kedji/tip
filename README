@@ -1,0 +1,92 @@
+Traffic Inspection Parcel
+-------------------------
+
+1. Introduction
+
+The purpose of this document is to provide an engineering description of the Traffic Inspection Parcel (TIP) format so that it can be used and extended to describe high level network events.  TIP is based on a nested-TLV structure to provide an efficient, machine-readable format that can be easily parsed, extended, and segmented, and that can be used as either a file format or a serialization form for network transfer.
+
+2. TIP Stream
+
+Each top-level TLV is functionally an island unto itself.  Although more than one TLV may be necessary to tell a meaningful story of network events, each of these TLVs can be parsed, skipped, removed, or altered in isolation.  There is also no strict ordering of these TLVs, nor is any particular type required to be present.  A TIP stream (for example, a single file) may contain several of these objects or merely one of them.
+
+Furthermore, since each TLV makes its length externally-visible, they can be joined to one another arbitrarily without creating difficulties for the eventual parser of the stream.  For example, a legitimate (though pedestrian) merge of two TIP files can be performed by merely concatenating the contents of those files.
+
+That said, generally each TLV is a piece of a larger puzzle. This freedom to segment, rearrange, and re-compose streams is a convenience only to the TIP parser - arbitrary mutations of a stream may likely deform the contained portrait of network events.  Reassemble these atomic pieces with care.
+
+3. Top-Level Parcels
+
+TIP is entirely composed, at the highest layer, of externally homogeneous TLVs called "parcels".  Each parcel has a two byte type field, which identifies the nature of its contents; a six byte "length" field, which describes the length of the contained content (up to 2^48 bytes, or 256pb); and an externally opaque "value" field exactly as long as the previously specified length.  All numeric fields, regardless of byte-width, are expressed as unsigned integers in network byte order.
+
+The following is a real-life example of one complete top-level parcel and its contents:
+
++---- 2 ----+---------- 6 ----------+------- length = 9 bytes -------+
+|   1A 01   |   00 00 00 00 00 09   |   4C 41 43 49 20 76 30 2e 39   |
++-----------+-----------------------+--------------------------------+
+  "made by"     length is 9 bytes              "LACI v0.9"
+
+This particular parcel represents the TLV 3-tuple [0x1A01, 9, "LACI v0.9"].  In this case, a type of 0x1A01 is the "made by" parcel - it describes the software that was used to to generate this TIP stream.  The 6-bye length value declares that the content of this parcel is 9 bytes long, and correspondingly the content string, "LACI v0.9", is 9 bytes.  The length field does not include the width of the type or length fields, and zero is a valid length.
+
+4. Parcel Types
+
+TIP is extensible in the sense that parcel types can be (responsibly!) added at any time without necessitating a change to the top-level TIP format.  Each type can have any format it wishes within its parcel, but all the default types continue with the TLV theme where appropriate.  Also, for ease of recognition, all default types start with a first byte of 0x1A.
+
+At the time this document was last updated, these are the default types and their formats:
+
+4.1 Made By (0x1A01)
+
+Contains a string of data describing, in human-readable text form, the software that was used to generate this TIP stream.
+
+4.2 Content Event (0x1ACE)
+
+Contains a two-byte "event id" followed by a concatenation of quasi-TLVs describing the event's attributes:
+
++------ 2 ------+---- 1 ----+---------- 4 ----------+-- "length" --+
+|    attr id    | attr type |  attr value's length  |  attr value  | ...
++---------------+-----------+-----------------------+--------------+
+
+The "attr type" is a 1-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", and an attr type of 1 means "string data".  String data may either be human readable or binary - no distinction is made.  Human readable strings are not NULL-terminated.
+
+4.3 - Event Dictionary (0x1AED)
+
+Contains a concatenation of sub-TLVs mapping 2-byte event IDs to their human-readable names:
+
++------ 2 ------+------ 2 ------+-- "length" --+
+|   event id    |  name length  |  event name  | ...
++---------------+---------------+--------------+
+
+Stylistically speaking, there is generally one event dictionary per TIP stream.  A TIP stream which possesses two or more contradictory dictionaries is not recommended and has undefined behavior.
+
+4.4 - Attribute Dictionary (0x1AAD)
+
+Contains a concatenation of sub-TLVs mapping 2-byte attribute IDs to their human-readable names:
+
++------ 2 ------+------ 2 ------+---- "length" ----+
+|    attr id    |  name length  |  attribute name  | ...
++---------------+---------------+------------------+
+
+Stylistically speaking, there is generally one attribute dictionary per TIP stream.  A TIP stream which possesses two or more contradictory dictionaries is not recommended and has undefined behavior.
+
+4.5 - Attribute String Translator (0x1AA5)
+
+Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4-byte, unsigned integer attribute values to their human readable string (eg, translating a DNS attribute QUESTION_TYPE value 15 into the more meaningful string "MX").  There is exactly one Attribute Translator per numeric attribute requiring translation regardless of however many events use that attribute.  All events that share a translated attribute share the same translation mapping.
+
++---- 2 ----+     +------ 4 ------+---- 2 ----+---- "length" ----+
+|  attr id  |  +  |  attr value   |  length   |  attribute text  | ...
++-----------+     +---------------+-----------+------------------+
+
+4.6 - Attribute Characteristics (0x1AAC)
+
+This parcel is used to describe the post-processing characteristics attribute values.  These characteristics can be combined with the OR operation to form a characteristic bitmap.  The characteristic codes are:
+
+0x00000001 - This attribute may not appear in all events
+0x00000002 - This attribute may occur multiple times per event (trumps former)
+0x00000004 - This is a boolean attribute, 0 = no, non-zero = yes
+0x00000008 - This unsigned integer attribute can be converted to a string
+0x00000010 - This attribute value is an IP address
+0x00000020 - This attribute is a time_t value (seconds since UNIX epoch)
+
+The format of the data in this parcel is a concatenation of 6-byte entries:
+
++----- 2 -----+---------- 4 ----------+
+|   attr id   | characteristic bitmap | ...
++-------------+-----------------------+
