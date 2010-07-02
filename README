@@ -48,7 +48,7 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |    attr id    |   attr type   |  attr value's length  |  attr value  | ...
 +---------------+---------------+-----------------------+--------------+
 
-The "attr type" is a 1-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", and an attr type of 1 means "string data".  String data may either be human readable or binary - no distinction is made.  Human readable strings are not NULL-terminated.
+The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", and an attr type of 1 means "string data".  String data may either be human readable or binary - no distinction is made.  Human readable strings are not NULL-terminated.
 
 4.3 - Event Dictionary (0x1AED)
 
