@@ -7,7 +7,7 @@ The purpose of this document is to provide an engineering description of the Tra
 
 2. TIP Stream
 
-Each top-level TLV is functionally an island unto itself.  Although more than one TLV may be necessary to tell a meaningful story of network events, each of these TLVs can be parsed, skipped, removed, or altered in isolation.  There is also no strict ordering of these TLVs, nor is any particular type required to be present.  A TIP stream (for example, a single file) may contain several of these objects or merely one of them.
+Each top-level TLV is functionally an island unto itself.  Although more than one TLV may be necessary to tell a meaningful story of network events, each of these TLVs can be parsed, skipped, removed, or altered in isolation.  There is no strict ordering of these TLVs, nor is any particular type required to be present.  A TIP stream (for example, a single file) may contain several of these objects or merely one of them.
 
 Furthermore, since each TLV makes its length externally-visible, they can be joined to one another arbitrarily without creating difficulties for the eventual parser of the stream.  For example, a legitimate (though pedestrian) merge of two TIP files can be performed by merely concatenating the contents of those files.
 
@@ -48,7 +48,11 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |    attr id    |   attr type   |  attr value's length  |  attr value  | ...
 +---------------+---------------+-----------------------+--------------+
 
-The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", and an attr type of 1 means "string data".  String data may either be human readable or binary - no distinction is made.  Human readable strings are not NULL-terminated.
+The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", an attr type of 1 means "string data" (no NULL bytes), and an attr type of 2 means "binary data" (may contain NULL bytes).  Binary data may either be human readable or not - no distinction is made.  An attr value length of 0 is always invalid - all attributes values must be at least one byte in length.
+
+Both string and binary data include a terminating NULL character, and this charcter's length is included in the attr value's length.  For example, the string "abc" will be serialized as "abc\0" and given an attr value length of 4.  Similarly, binary data "\x01\x00\xFF\x00" will be (seemingly redundantly) serialized as "\x01\x00\xFF\x00\0" and given an attr value length of 5.  This is done for consistency and as a performance optimization (character pointers and synthetic sbuff objects can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator.
+
+TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
 4.3 - Event Dictionary (0x1AED)
 
@@ -82,11 +86,11 @@ Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4
 
 This parcel is used to describe the post-processing characteristics attribute values.  These characteristics can be combined with the OR operation to form a characteristic bitmap.  The characteristic codes are:
 
-0x00000001 - This attribute may not appear in all events
-0x00000002 - This attribute may occur multiple times per event (trumps former)
+0x00000001 - This attribute is an annotation rather than a strict member of an event (eg, encapsulation metadata)
+0x00000002 - This integer attribute is signed (highest bit denotes sign)
 0x00000004 - This is a boolean attribute, 0 = no, non-zero = yes
 0x00000008 - This unsigned integer attribute can be converted to a string
-0x00000010 - This attribute value is an IP address
+0x00000010 - This attribute value is an IPv4 (uint) or IPv6 (string) address
 0x00000020 - This attribute is a time_t value (seconds since UNIX epoch)
 
 The format of the data in this parcel is a concatenation of 6-byte entries:
@@ -94,3 +98,24 @@ The format of the data in this parcel is a concatenation of 6-byte entries:
 +----- 2 -----+---------- 4 ----------+
 |   attr id   | characteristic bitmap | ...
 +-------------+-----------------------+
+
+Integer attributes that can be converted to a string (0x00000008) are not necessarily convertible by the attribute string translator.  That is, some attribute values may be converted by the Network Content Inspection System (NCIS) itself that cannot reasonably be compiled to a static translation list.
+
+4.7 - Event Structures (0x1AE5)
+
+This parcel describes the structure of events that can be serialized in this TIP stream.  It is composed of a concatenation of sub-TLVs:
+
++------ 2 ------+------ 2 ------+     +------ 2 ------+------ 2 ------+ 
+|   event id    | attrlist size |  +  |    attr id    |   attr type   | ...
++---------------+---------------+     +---------------+---------------+
+
+The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4.
+
+The "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE), only here the most significant byte contains characteristic meaning.  The most significant byte (MSB) values have the following meanings:
+
+0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
+0x01 - This attribute is always present exactly once in this event.
+0x02 - This attribute may appear 0, 1, or more times in this event.
+
+Example:  An attribute with an ID of 15 contains string data and will always occur once per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x0F\x01\x01".
+Example:  An attribute with an ID of 20 contains integer data and may occur 0 or more times per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x14\x02\x00".
