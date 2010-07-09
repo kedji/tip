@@ -48,9 +48,9 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |    attr id    |   attr type   |  attr value's length  |  attr value  | ...
 +---------------+---------------+-----------------------+--------------+
 
-The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", an attr type of 1 means "string data" (no NULL bytes), and an attr type of 2 means "binary data" (may contain NULL bytes).  Binary data may either be human readable or not - no distinction is made.  An attr value length of 0 is always invalid - all attributes values must be at least one byte in length.
+The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", an attr type of 1 means "string data" (no NULL bytes), and an attr type of 2 means "binary data" (may contain NULL bytes).  Binary data may either be human readable or not - no distinction is made.
 
-Both string and binary data include a terminating NULL character, and this charcter's length is included in the attr value's length.  For example, the string "abc" will be serialized as "abc\0" and given an attr value length of 4.  Similarly, binary data "\x01\x00\xFF\x00" will be (seemingly redundantly) serialized as "\x01\x00\xFF\x00\0" and given an attr value length of 5.  This is done for consistency and as a performance optimization (character pointers and synthetic sbuff objects can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator.
+String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on this.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
 
 TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
@@ -111,7 +111,7 @@ This parcel describes the structure of events that can be serialized in this TIP
 
 The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4.
 
-The "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE), only here the most significant byte contains characteristic meaning.  The most significant byte (MSB) values have the following meanings:
+The first byte of the "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE), with one addition:  a value of 3 means the attribute type is undefined - it can be an integer, a string, or binary data; the exact type will not be known until the event is generated.  Here the most significant byte of "attr type" contains the Attribute Characteristic meaning.  The most significant byte (MSB) values have the following meanings:
 
 0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
 0x01 - This attribute is always present exactly once in this event.

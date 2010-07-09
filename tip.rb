@@ -11,10 +11,11 @@ class TIP
     @attr_dict = {}
     @callback = cb
     @stream = ""
+    @verbose = false
   end
 
-  attr_reader :callback, :made_by, :event_dict, :attr_dict
-  attr_writer :callback
+  attr_reader :callback, :made_by, :event_dict, :attr_dict, :verbose
+  attr_writer :callback, :verbose
 
   # Convert a string in Network Byte Order to an unsigned integer
   def nbo(str)
@@ -44,6 +45,14 @@ class TIP
           attribute_dictionary(value)
         when 0x1AED
           event_dictionary(value)
+        when 0x1AAC
+          attribute_characteristics(value)
+        when 0x1AE5
+          attribute_translator(value)
+        when 0x1AE5
+          event_structures(value)
+        default
+          puts "Unknown parcel type: 0x#{'%04x' % type}"
       end
     end
   end
@@ -58,7 +67,7 @@ class TIP
     # Get the event name if possible, otherwise just use the numeric id
     event_id = @event_dict[event_id] || event_id
     data[0, 2] = ''
-    event = { 'event_name' => event_id }
+    event = { 'event_id' => event_id }
 
     # Now get the attribute values
     while data.length >= 8 and data.length - nbo(data[4, 4]) >= 8
@@ -82,6 +91,10 @@ class TIP
       @attr_dict[nbo(value[0, 2])] = value[4, nbo(value[2, 2])]
       value[0, 4 + nbo(value[2, 2])] = ''
     end
+    if @verbose
+      puts "\n-- Attribute Dictionary: --"
+      @attr_dict.to_a.sort.each { |k,v| puts("%5d => %s" % [ k, v ]) }
+    end
   end
 
   def event_dictionary(value)
@@ -89,6 +102,22 @@ class TIP
       @event_dict[nbo(value[0, 2])] = value[4, nbo(value[2, 2])]
       value[0, 4 + nbo(value[2, 2])] = ''
     end
+    if @verbose
+      puts "\n-- Event Dictionary: --"
+      @event_dict.to_a.sort.each { |k,v| puts("%5d => %s" % [ k, v ]) }
+    end
+  end
+
+  def attribute_characteristics(value)
+    puts "attr characteristics"
+  end
+
+  def attribute_translator(value)
+    puts "attribute translator"
+  end
+
+  def event_structures(value)
+    puts "event_structures"
   end
 
 end  # of class TIP
@@ -97,5 +126,11 @@ end  # of class TIP
 # Main program
 if $0 == __FILE__
   tip_stream = TIP.new { |event| puts "#{event.inspect}\n\n" }
-  ARGV.each { |f| tip_stream << File.read(f) }
+  ARGV.each do |f|
+    if f == '-v'
+      tip_stream.verbose = true
+    else
+      tip_stream << File.read(f)
+    end
+  end
 end
