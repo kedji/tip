@@ -9,6 +9,8 @@ class TIP
     @made_by = nil
     @event_dict = {}
     @attr_dict = {}
+    @attr_characteristics = {}
+    @attr_translations = {}
     @callback = cb
     @stream = ""
     @verbose = false
@@ -47,11 +49,11 @@ class TIP
           event_dictionary(value)
         when 0x1AAC
           attribute_characteristics(value)
-        when 0x1AE5
+        when 0x1AA5
           attribute_translator(value)
         when 0x1AE5
           event_structures(value)
-        default
+        else
           puts "Unknown parcel type: 0x#{'%04x' % type}"
       end
     end
@@ -109,15 +111,52 @@ class TIP
   end
 
   def attribute_characteristics(value)
-    puts "attr characteristics"
+    while value.length >= 6
+      attr_id = nbo(value[0, 2])
+      attr_chars = nbo(value[2, 4])
+      value[0, 6] = ''
+      @attr_characteristics[attr_id] = characteristic_deflag(attr_chars)
+    end
+    if @verbose
+      puts "\n-- Attribute Characteristics --"
+      @attr_characteristics.to_a.sort.each do |id,char_list|
+        id = @attr_dict[id] || ("%3d" % id)
+        puts("  #{id} => #{char_list.inspect}")
+      end
+    end
   end
 
   def attribute_translator(value)
-    puts "attribute translator"
+    attr_id = nbo(value[0, 2])
+    value[0, 2] = ''
+    trans_hash = {}
+    while value.length > 6 and nbo(value[4, 2]) + 6 <= value.length
+      attr_value = nbo(value[0, 4])
+      attr_string = value[6, nbo(value[4, 2])]
+      value[0, 6 + attr_string.length] = ''
+      trans_hash[attr_value] = attr_string
+    end
+    @attr_translations[attr_id] = trans_hash
+    if @verbose
+      puts "\n-- Attribute Translation --"
+      id = @attr_dict[attr_id] || ("%3d" % attr_id)
+      puts("#{id}: #{trans_hash.inspect}")        
+    end
   end
 
   def event_structures(value)
     puts "event_structures"
+  end
+
+  def characteristic_deflag(flags)
+    ret = []
+    ret << :annotation if flags & 0x0001 > 0
+    ret << :signed     if flags & 0x0002 > 0
+    ret << :boolean    if flags & 0x0004 > 0
+    ret << :string     if flags & 0x0008 > 0
+    ret << :ip         if flags & 0x0010 > 0
+    ret << :time       if flags & 0x0020 > 0
+    ret
   end
 
 end  # of class TIP

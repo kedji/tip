@@ -76,7 +76,7 @@ Stylistically speaking, there is generally one attribute dictionary per TIP stre
 
 4.5 - Attribute String Translator (0x1AA5)
 
-Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4-byte, unsigned integer attribute values to their human readable string (eg, translating a DNS attribute QUESTION_TYPE value 15 into the more meaningful string "MX").  There is exactly one Attribute Translator per numeric attribute requiring translation regardless of however many events use that attribute.  All events that share a translated attribute share the same translation mapping.
+Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4-byte, unsigned integer attribute values to their human readable string (eg, translating a DNS attribute QUESTION_TYPE value 15 into the more meaningful string "MX").  There is exactly one Attribute Translator parcel per numeric attribute requiring translation regardless of however many events use that attribute.  All events that share a translated attribute share the same translation mapping.
 
 +---- 2 ----+     +------ 4 ------+---- 2 ----+---- "length" ----+
 |  attr id  |  +  |  attr value   |  length   |  attribute text  | ...
