@@ -11,6 +11,8 @@ class TIP
     @attr_dict = {}
     @attr_characteristics = {}
     @attr_translations = {}
+    @event_structures = []
+    @array_elements = []
     @callback = cb
     @stream = ""
     @verbose = false
@@ -65,24 +67,30 @@ class TIP
 
   def content_event(data)
     event_id = nbo(data[0, 2])
-
+    
     # Get the event name if possible, otherwise just use the numeric id
-    event_id = @event_dict[event_id] || event_id
+    event_name = @event_dict[event_id] || event_id.to_s
     data[0, 2] = ''
-    event = { 'event_id' => event_id }
+    event = { 'event_name' => event_name }
+    event = new_event_object(event_id)
 
     # Now get the attribute values
     while data.length >= 8 and data.length - nbo(data[4, 4]) >= 8
       length = nbo(data[4, 4])
       attr_id = nbo(data[0, 2])
-      attr_id = @attr_dict[attr_id] || attr_id
+      attr_id = (@attr_dict[attr_id] || attr_id).to_s.to_sym
       attr_val = data[8, length]
       attr_val = nbo(attr_val) if data[3] == 0
       
       # Perform attribute value translation
       # ADD CODE HERE
 
+begin
       event[attr_id] = attr_val
+rescue
+puts event.inspect
+Kernel.exit
+end
       data[0, 8 + length] = ''
     end
     @callback.call(event) if @callback
@@ -144,8 +152,32 @@ class TIP
     end
   end
 
+  # Event structure depends on the event and attribute dictionaries
   def event_structures(value)
-    puts "event_structures"
+    event_ids = []
+    while value.length > 4 and value.length > 4 + nbo(value[2,2])
+      event_id = nbo(value[0, 2])
+      event_ids << event_id
+      e_struct = [ :event_name, :annotations ]
+      multi = [ :annotations ]
+      (nbo(value[2, 2]) / 4).times do |i|
+        attr_name = @attr_dict[nbo(value[4 * i + 4, 2])]
+        e_struct << attr_name.to_sym
+        multi << attr_name.to_sym if nbo(value[4 * i + 6, 1]) == 2
+      end
+      @event_structures[event_id] = Struct.new(*e_struct)
+      @array_elements[event_id] = multi
+      value[0, nbo(value[2, 2]) + 4] = ''
+    end
+    if @verbose
+      puts "\n-- Event Structures --"
+      event_ids.each do |event_id|
+        obj = new_event_object(event_id)
+        puts "  #{@event_dict[event_id]}:"
+        obj.each_pair { |k,v| puts "    #{k} #{"=> #{v.inspect}" if v}" }
+        puts "\n"
+      end
+    end
   end
 
   def characteristic_deflag(flags)
@@ -156,6 +188,14 @@ class TIP
     ret << :string     if flags & 0x0008 > 0
     ret << :ip         if flags & 0x0010 > 0
     ret << :time       if flags & 0x0020 > 0
+    ret
+  end
+
+  # Generate an event object of the type identified by its id
+  def new_event_object(event_id)
+    ret = @event_structures[event_id].new
+    @array_elements[event_id].each { |elem| ret[elem] = [] }
+    ret.event_name = event_dict[event_id]
     ret
   end
 

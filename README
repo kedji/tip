@@ -52,6 +52,13 @@ The "attr type" is a 2-byte field describing the nature of the provided value.  
 
 String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on this.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
 
+The attr_type field may also indicate "extended" types:
+3 - This type is reserved and should not be used in Content Event parcels.
+4 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
+5 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
+6 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
+7 - This attribute is a signed integer in 2's compliment.
+
 TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
 4.3 - Event Dictionary (0x1AED)
@@ -91,7 +98,7 @@ This parcel is used to describe the post-processing characteristics attribute va
 0x00000004 - This is a boolean attribute, 0 = no, non-zero = yes
 0x00000008 - This unsigned integer attribute can be converted to a string
 0x00000010 - This attribute value is an IPv4 (uint) or IPv6 (string) address
-0x00000020 - This attribute is a time_t value (seconds since UNIX epoch)
+0x00000020 - This attribute is a time_t value (seconds since Unix epoch)
 
 The format of the data in this parcel is a concatenation of 6-byte entries:
 
