@@ -48,16 +48,21 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |    attr id    |   attr type   |  attr value's length  |  attr value  | ...
 +---------------+---------------+-----------------------+--------------+
 
-The "attr type" is a 2-byte field describing the nature of the provided value.  An attr type of 0 means "unsigned integer", an attr type of 1 means "string data" (no NULL bytes), and an attr type of 2 means "binary data" (may contain NULL bytes).  Binary data may either be human readable or not - no distinction is made.
+The "attr type" is a 2-byte field describing the nature of the provided value.  There are three basic types:  integer data, ascii string, and binary data.
 
-String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on this.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
+String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on it being present.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
 
-The attr_type field may also indicate "extended" types:
-3 - This type is reserved and should not be used in Content Event parcels.
-4 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
-5 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
-6 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
-7 - This attribute is a signed integer in 2's compliment.
+Binary data may either be human readable or not - no distinction is made.
+
+The attr_type field provides, in addition to information about these fundamental types, hints as to their interpretation.  Integer data is described by types 0-31, NULL-terminated ascii data is described by types 32-63, and binary data is described by types 64-95.  In other words, (attr_type >> 5) == 0 if integer data, 1 if string data, and 2 if binary data.  The following list of attr types specifies interpretation more precisely:
+ 0 - This attribute is an unsigned integer.
+ 1 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
+ 2 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
+ 3 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
+ 4 - This attribute is a signed integer in 2's compliment.
+32 - This attribute is a human-readable ascii string.
+33 - This attribute is an ascii string representing an IPv6 address.
+64 - This attribute is binary data.
 
 TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
