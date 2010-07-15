@@ -3,6 +3,8 @@
 # This is a demo program that parses Traffic Inspection Parcel (TIP) files and
 # raises Hash objects on contained events.
 
+require 'ipaddr'
+
 class TIP
 
   def initialize(&cb)
@@ -80,17 +82,26 @@ class TIP
       attr_id = nbo(data[0, 2])
       attr_id = (@attr_dict[attr_id] || attr_id).to_s.to_sym
       attr_val = data[8, length]
-      attr_val = nbo(attr_val) if data[3] == 0
+      attr_type = data[3]
+
+      # Convert the attribute based on its type
+      case attr_type
+        when 0
+          attr_val = nbo(attr_val)
+        when 1
+          attr_val = [ false, true ][nbo(attr_val)]
+        when 2
+          attr_val = IPAddr.new(nbo(attr_val), 2)
+        when 3
+          attr_val = Time.at(nbo(attr_val))
+        when 33
+          attr_val = IPAddr.new(attr_val, 10)
+      end
       
       # Perform attribute value translation
       # ADD CODE HERE
 
-begin
       event[attr_id] = attr_val
-rescue
-puts event.inspect
-Kernel.exit
-end
       data[0, 8 + length] = ''
     end
     @callback.call(event) if @callback
@@ -183,11 +194,8 @@ end
   def characteristic_deflag(flags)
     ret = []
     ret << :annotation if flags & 0x0001 > 0
-    ret << :signed     if flags & 0x0002 > 0
-    ret << :boolean    if flags & 0x0004 > 0
-    ret << :string     if flags & 0x0008 > 0
-    ret << :ip         if flags & 0x0010 > 0
-    ret << :time       if flags & 0x0020 > 0
+    ret << :string     if flags & 0x0002 > 0
+    ret << :ip         if flags & 0x0004 > 0
     ret
   end
 
