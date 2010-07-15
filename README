@@ -99,11 +99,8 @@ Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4
 This parcel is used to describe the post-processing characteristics attribute values.  These characteristics can be combined with the OR operation to form a characteristic bitmap.  The characteristic codes are:
 
 0x00000001 - This attribute is an annotation rather than a strict member of an event (eg, encapsulation metadata)
-0x00000002 - This integer attribute is signed (highest bit denotes sign)
-0x00000004 - This is a boolean attribute, 0 = no, non-zero = yes
-0x00000008 - This unsigned integer attribute can be converted to a string
-0x00000010 - This attribute value is an IPv4 (uint) or IPv6 (string) address
-0x00000020 - This attribute is a time_t value (seconds since Unix epoch)
+0x00000002 - This unsigned integer attribute can be converted to a string
+0x00000004 - This attribute value is an IPv4 (uint) or IPv6 (string) address
 
 The format of the data in this parcel is a concatenation of 6-byte entries:
 
