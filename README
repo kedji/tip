@@ -60,6 +60,7 @@ The attr_type field provides, in addition to information about these fundamental
  2 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
  3 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
  4 - This attribute is a signed integer in 2's compliment.
+ 5 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
 32 - This attribute is a human-readable ascii string.
 33 - This attribute is an ascii string representing an IPv6 address.
 64 - This attribute is binary data.

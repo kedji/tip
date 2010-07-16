@@ -80,7 +80,7 @@ class TIP
     while data.length >= 8 and data.length - nbo(data[4, 4]) >= 8
       length = nbo(data[4, 4])
       attr_id = nbo(data[0, 2])
-      attr_id = (@attr_dict[attr_id] || attr_id).to_s.to_sym
+      attr_name = (@attr_dict[attr_id] || attr_id).to_s.to_sym
       attr_val = data[8, length]
       attr_type = data[3]
 
@@ -94,6 +94,11 @@ class TIP
           attr_val = IPAddr.new(nbo(attr_val), 2)
         when 3
           attr_val = Time.at(nbo(attr_val))
+        when 4
+          attr_val = nbo(attr_val)
+          # ADD CODE HERE
+        when 5
+          attr_val = @attr_translations[attr_id][nbo(attr_val)]
         when 33
           attr_val = IPAddr.new(attr_val, 10)
       end
@@ -101,7 +106,7 @@ class TIP
       # Perform attribute value translation
       # ADD CODE HERE
 
-      event[attr_id] = attr_val
+      event[attr_name] = attr_val
       data[0, 8 + length] = ''
     end
     @callback.call(event) if @callback
