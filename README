@@ -26,17 +26,68 @@ The following is a real-life example of one complete top-level parcel and its co
 
 This particular parcel represents the TLV 3-tuple [0x1A01, 9, "LACI v0.9"].  In this case, a type of 0x1A01 is the "made by" parcel - it describes the software that was used to to generate this TIP stream.  The 6-bye length value declares that the content of this parcel is 9 bytes long, and correspondingly the content string, "LACI v0.9", is 9 bytes.  The length field does not include the width of the type or length fields, and zero is a valid length.
 
-4. Parcel Types
+4. Common Data Structures
+
+4.1 - Attribute Type (attr_type)
+
+Attribute Type structures are used to describe the nature of an attribute within the defintion of an event or an instance of that event.  Attribute type structures are two bytes:
+
++------ 2 ------+
+|   attr type   |
++---------------+
+
+The first (most significant) byte is used by some parcels and is absent from others.  When present, the most significant byte describes the presence of an attribute within an event.  The MSB values have the following meanings:
+
+0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
+0x01 - This attribute is always present exactly once in this event.
+0x02 - This attribute may appear 0, 1, or more times in this event.
+
+The second (least significant) byte is always present, and it describes the structure and the interpretation of the attribute.  There are three basic attribute types:  integer data, ascii string, and binary data.
+
+Integer data is described by types 0-31, human-readable ascii data is described by types 32-63, and binary data is described by types 64-95.  In other words, (attr_type LSB >> 5) == 0 if integer data, 1 if string data, and 2 if binary data.  The following list specifies interpretation more precisely:
+ 0 - This attribute is an unsigned integer.
+ 1 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
+ 2 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
+ 3 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
+ 4 - This attribute is a signed integer in 2's compliment.
+ 5 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
+32 - This attribute is a human-readable ascii string.
+33 - This attribute is an ascii string representing an IPv6 address.
+64 - This attribute is binary data.
+
+4.2 - Event ID (event_id)
+
+The Event ID is a two-byte field that uniquely identifies an event by its surrogate ID.
+
++------ 2 ------+
+|   event id    |
++---------------+
+
+These IDs can be mapped to human-readable names using the Event Dictionary parcel.
+
+4.3 - Attribute ID (attr_id)
+
+The Attribute ID is a two-byte field that uniquely identifies an attribute by its surrogate ID.
+
++------ 2 ------+
+|    attr id    |
++---------------+
+
+These IDs can be mapped to human-readable names using the Attribute Dictionary parcel.
+
+5. Parcel Types
 
 TIP is extensible in the sense that parcel types can be (responsibly!) added at any time without necessitating a change to the top-level TIP format.  Each type can have any format it wishes within its parcel, but all the default types continue with the TLV theme where appropriate.  Also, for ease of recognition, all default types start with a first byte of 0x1A.
 
 At the time this document was last updated, these are the default types and their formats:
 
-4.1 Made By (0x1A01)
+5.1 Made By (0x1A01)
 
 Contains a string of data describing, in human-readable text form, the software that was used to generate this TIP stream.
 
-4.2 Content Event (0x1ACE)
+5.2 Content Event (0x1ACE)
+
+Content Event parcels describe one instance of an event.  Each instance follows the form of the definition of the event, described in the Event Structures parcel (if present).  In other words, the Content Event parcels describes event objects, where the Event Structures parcel describes event classes.
 
 Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describing the event's attributes:
 
@@ -48,26 +99,15 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |    attr id    |   attr type   |  attr value's length  |  attr value  | ...
 +---------------+---------------+-----------------------+--------------+
 
-The "attr type" is a 2-byte field describing the nature of the provided value.  There are three basic types:  integer data, ascii string, and binary data.
+The "attr type" is a 2-byte field describing the nature of the provided value.  
 
 String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on it being present.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
 
 Binary data may either be human readable or not - no distinction is made.
 
-The attr_type field provides, in addition to information about these fundamental types, hints as to their interpretation.  Integer data is described by types 0-31, NULL-terminated ascii data is described by types 32-63, and binary data is described by types 64-95.  In other words, (attr_type >> 5) == 0 if integer data, 1 if string data, and 2 if binary data.  The following list of attr types specifies interpretation more precisely:
- 0 - This attribute is an unsigned integer.
- 1 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
- 2 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
- 3 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
- 4 - This attribute is a signed integer in 2's compliment.
- 5 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
-32 - This attribute is a human-readable ascii string.
-33 - This attribute is an ascii string representing an IPv6 address.
-64 - This attribute is binary data.
-
 TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
-4.3 - Event Dictionary (0x1AED)
+5.3 - Event Dictionary (0x1AED)
 
 Contains a concatenation of sub-TLVs mapping 2-byte event IDs to their human-readable names:
 
@@ -77,7 +117,7 @@ Contains a concatenation of sub-TLVs mapping 2-byte event IDs to their human-rea
 
 Stylistically speaking, there is generally one event dictionary per TIP stream.  A TIP stream which possesses two or more contradictory dictionaries is not recommended and has undefined behavior.
 
-4.4 - Attribute Dictionary (0x1AAD)
+5.4 - Attribute Dictionary (0x1AAD)
 
 Contains a concatenation of sub-TLVs mapping 2-byte attribute IDs to their human-readable names:
 
@@ -87,7 +127,7 @@ Contains a concatenation of sub-TLVs mapping 2-byte attribute IDs to their human
 
 Stylistically speaking, there is generally one attribute dictionary per TIP stream.  A TIP stream which possesses two or more contradictory dictionaries is not recommended and has undefined behavior.
 
-4.5 - Attribute String Translator (0x1AA5)
+5.5 - Attribute String Translator (0x1AA5)
 
 Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4-byte, unsigned integer attribute values to their human readable string (eg, translating a DNS attribute QUESTION_TYPE value 15 into the more meaningful string "MX").  There is exactly one Attribute Translator parcel per numeric attribute requiring translation regardless of however many events use that attribute.  All events that share a translated attribute share the same translation mapping.
 
@@ -95,7 +135,7 @@ Contains a 2-byte attribute ID followed by a concatenation of sub-TLVs mapping 4
 |  attr id  |  +  |  attr value   |  length   |  attribute text  | ...
 +-----------+     +---------------+-----------+------------------+
 
-4.6 - Attribute Characteristics (0x1AAC)
+5.6 - Attribute Characteristics (0x1AAC)
 
 This parcel is used to describe the post-processing characteristics attribute values.  These characteristics can be combined with the OR operation to form a characteristic bitmap.  The characteristic codes are:
 
@@ -111,7 +151,7 @@ The format of the data in this parcel is a concatenation of 6-byte entries:
 
 Integer attributes that can be converted to a string (0x00000008) are not necessarily convertible by the attribute string translator.  That is, some attribute values may be converted by the Network Content Inspection System (NCIS) itself that cannot reasonably be compiled to a static translation list.
 
-4.7 - Event Structures (0x1AE5)
+5.7 - Event Structures (0x1AE5)
 
 This parcel describes the structure of events that can be serialized in this TIP stream.  It is composed of a concatenation of sub-TLVs:
 
@@ -119,13 +159,20 @@ This parcel describes the structure of events that can be serialized in this TIP
 |   event id    | attrlist size |  +  |    attr id    |   attr type   | ...
 +---------------+---------------+     +---------------+---------------+
 
-The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4.
+The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4. 
 
-The first byte of the "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE).  Here the most significant byte of "attr type" contains the Attribute Characteristic meaning.  The most significant byte (MSB) values have the following meanings:
+Example:  An attribute with an ID of 15 contains string data and will occur at most once per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x0F\x00\x20".
+Example:  An attribute with an ID of 20 contains time_t data and may occur 0 or more times per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x14\x02\x03".
 
-0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
-0x01 - This attribute is always present exactly once in this event.
-0x02 - This attribute may appear 0, 1, or more times in this event.
+6 - Recommended Parcel Ordering
 
-Example:  An attribute with an ID of 15 contains string data and will always occur once per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x0F\x01\x01".
-Example:  An attribute with an ID of 20 contains integer data and may occur 0 or more times per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x14\x02\x00".
+As described earlier, parcels can be written and read independently and do not formally depend on each other.  An event serialization system may only include Content Event parcels and ignore all the descriptive parcel types (they may in fact be redundant in some systems).
+
+However, a "complete" TIP stream should generally contain all of the descriptive parcels followed by a series of Content Event parcels.  The recommended order is:
+
+- Made By
+- Event Dictionary
+- Attribute Dictionary
+- Attribute String Translator
+- Attribute Characteristics
+- Event Structures
