@@ -121,7 +121,7 @@ This parcel describes the structure of events that can be serialized in this TIP
 
 The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4.
 
-The first byte of the "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE), with one addition:  a value of 3 means the attribute type is undefined - it can be an integer, a string, or binary data; the exact type will not be known until the event is generated.  Here the most significant byte of "attr type" contains the Attribute Characteristic meaning.  The most significant byte (MSB) values have the following meanings:
+The first byte of the "attr type" field, in this case, corresponds to the field of the same name in Content Event parcels (0x1ACE).  Here the most significant byte of "attr type" contains the Attribute Characteristic meaning.  The most significant byte (MSB) values have the following meanings:
 
 0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
 0x01 - This attribute is always present exactly once in this event.
