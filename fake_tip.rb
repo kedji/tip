@@ -10,10 +10,9 @@ def nbo(val, width)
 end
 
 # create a fake event attribute
-def attr(id, val)
-  type = nbo(1, 2)
+def attr(id, type_code, val)
+  type = nbo(type_code, 2)
   if val.class <= Integer
-    type = nbo(0, 2)
     val = nbo(val, 8)
   end
   "#{nbo(id, 2)}#{type}#{nbo(val.length, 4)}#{val}"
@@ -27,6 +26,15 @@ end
 # create a parcel of the given data and type
 def parcel(type, payload)
   "#{(type / 256).chr}#{(type % 256).chr}#{nbo(payload.length, 6)}#{payload}"
+end
+
+# create an Event Structure entry
+def structure(event_id, *attrs)
+  ret = nbo(event_id, 2) + nbo(attrs.length * 4, 2)
+  attrs.each do |a_id, a_type|
+    ret << nbo(a_id, 2) << nbo(a_type, 2)
+  end
+  ret
 end
 
 File.open('fake.tip', 'w') do |fake|
@@ -43,18 +51,27 @@ File.open('fake.tip', 'w') do |fake|
   dict << dict_entry(2, 'server_ip')
   dict << dict_entry(3, 'server_port')
   dict << dict_entry(4, 'cause')
+  dict << dict_entry(5, 'opaque_stuff')
   fake.print parcel(0x1aad, dict)
 
-  # Make a fake start event
-  base_event =  attr(1, '10.0.0.5')
-  base_event << attr(2, '10.0.0.121')
-  base_event << attr(3, 80)
+  # Make a fake event structure event
+  e_struct =  structure(1, [1, 2], [2, 2], [3, 0])
+  e_struct << structure(2, [1, 2], [2, 2], [3, 0], [4, 32], [5, 64])
+  e_struct << structure(3, [1, 2], [2, 2], [3, 0])
+  fake.print parcel(0x1ae5, e_struct)
+e_struct.each_byte { |b| print("%02x " % b) } ; puts ""
+parcel(0x1ae5, e_struct).each_byte { |b| print("%02x " % b) } ; puts ""
+
+  # Make a fake "flow_start" event
+  base_event =  attr(1, 2, 0x0a00007b)
+  base_event << attr(2, 2, 0x0a000034)
+  base_event << attr(3, 0, 80)
   fake.print parcel(0x1ace, nbo(1, 2) + base_event)
 
   # Make a fake happenstance event
   event = base_event.dup
-  event << attr(4, 'human-readable protocol was used')
-  event << attr(5, 'this attribute has no dictionary entry')
+  event << attr(4, 32, 'human-readable protocol was used')
+  event << attr(5, 64, 'this attribute is binary content')
   fake.print parcel(0x1ace, nbo(2, 2) + event)
 
   # Make a fake end event

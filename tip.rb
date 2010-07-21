@@ -98,13 +98,23 @@ class TIP
           attr_val = nbo(attr_val)
           # ADD CODE HERE
         when 5
-          attr_val = @attr_translations[attr_id][nbo(attr_val)]
+          # Remember, not all "code" objects have attr translation entries
+          if (@attr_translations[attr_id])
+            attr_val = @attr_translations[attr_id][nbo(attr_val)] ||
+                       nbo(attr_val)
+          else
+            attr_val = nbo(attr_val)
+          end
         when 33
           attr_val = IPAddr.new(attr_val, 10)
       end
       
       # Perform attribute value translation
-      # ADD CODE HERE
+      if @attr_characteristics[attr_id] and
+         @attr_characteristics[attr_id].include?(:annotation)
+        attr_val = [ attr_name, attr_val ]
+        attr_name = :annotation
+      end
 
       event[attr_name] = attr_val
       data[0, 8 + length] = ''
@@ -144,8 +154,8 @@ class TIP
     if @verbose
       puts "\n-- Attribute Characteristics --"
       @attr_characteristics.to_a.sort.each do |id,char_list|
-        id = @attr_dict[id] || ("%3d" % id)
-        puts("  #{id} => #{char_list.inspect}")
+        nid = @attr_dict[id] || ("%3d" % id)
+        puts("  (#{id}) #{nid} => #{char_list.inspect}")
       end
     end
   end
@@ -171,11 +181,11 @@ class TIP
   # Event structure depends on the event and attribute dictionaries
   def event_structures(value)
     event_ids = []
-    while value.length > 4 and value.length > 4 + nbo(value[2,2])
+    while value.length > 4 and value.length >= 4 + nbo(value[2,2])
       event_id = nbo(value[0, 2])
       event_ids << event_id
-      e_struct = [ :event_name, :annotations ]
-      multi = [ :annotations ]
+      e_struct = [ :event_name, :annotation ]
+      multi = [ :annotation ]
       (nbo(value[2, 2]) / 4).times do |i|
         attr_name = @attr_dict[nbo(value[4 * i + 4, 2])]
         e_struct << attr_name.to_sym
