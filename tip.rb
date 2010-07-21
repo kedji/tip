@@ -116,7 +116,11 @@ class TIP
         attr_name = :annotation
       end
 
-      event[attr_name] = attr_val
+      if event[attr_name].class <= Array
+        event[attr_name] << attr_val
+      else
+        event[attr_name] = attr_val
+      end
       data[0, 8 + length] = ''
     end
     @callback.call(event) if @callback
