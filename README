@@ -101,9 +101,9 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 
 The "attr type" is a 2-byte field describing the nature of the provided value.  
 
-String data is allowed to include a terminating NULL character, but this is not mandatory and the consumer should not depend on it being present.  If present, this terminating charcter's length is included in the attr value's length.  For example, the string "abc" would be serialized as "abc\0" and given an attr value length of 4.  This can be done as a performance optimization (character pointers can point directly into a parcel's content without it needing to be copied into a separate buffer to append a distinct NULL terminator).
+String data is not allowed to include a terminating NULL character, and the consumer should never depend on it being present.
 
-Binary data may either be human readable or not - no distinction is made.
+Binary data may either be human readable or not - no distinction is made.  NULL terminating characters (which are not part of the data to be communicated) are again not allowed.
 
 TIP readers should only interpret the least significant byte of the "attr type" field, and TIP writers should always emit 0x00 as the most significant byte of the "attr type" field.
 
