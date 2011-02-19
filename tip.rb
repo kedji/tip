@@ -36,11 +36,11 @@ class TIP
     @stream << parcel_data
 
     # Loop through as many complete parcels as we have
-    while @stream.length >= 8 and @stream.length - nbo(@stream[2, 6]) >= 8
+    while @stream.length >= 6 and @stream.length - nbo(@stream[2, 4]) >= 8
       type = nbo(@stream[0, 2])
-      length = nbo(@stream[2, 6])
-      value = @stream[8, length]
-      @stream[0, 8 + length] = ''
+      length = nbo(@stream[2, 4])
+      value = @stream[6, length]
+      @stream[0, 6 + length] = ''
 
       case type
         when 0x1A01
@@ -232,6 +232,10 @@ end  # of class TIP
 # Main program
 if $0 == __FILE__
   tip_stream = TIP.new { |event| puts "#{event.inspect}\n\n" }
+  if ARGV.empty?
+    puts "Usage: #{$0} <tip> [tip...]"
+    Kernel.exit(1)
+  end
   ARGV.each do |f|
     if f == '-v'
       tip_stream.verbose = true

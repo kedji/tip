@@ -15,14 +15,14 @@ That said, generally each TLV is a piece of a larger puzzle. This freedom to seg
 
 3. Top-Level Parcels
 
-TIP is entirely composed, at the highest layer, of externally homogeneous TLVs called "parcels".  Each parcel has a 2-byte type field, which identifies the nature of its contents; a 6-byte "length" field, which describes the length of the contained content (up to 2^48 bytes, or 256pb); and an externally opaque "value" field exactly as long as the previously specified length.  All numeric fields, regardless of byte-width, are expressed as unsigned integers in network byte order.
+TIP is entirely composed, at the highest layer, of externally homogeneous TLVs called "parcels".  Each parcel has a 2-byte type field, which identifies the nature of its contents; a 4-byte "length" field, which describes the length of the contained content (up to 2^32 bytes, or 4gb); and an externally opaque "value" field exactly as long as the previously specified length.  All numeric fields, regardless of byte-width, are expressed as unsigned integers in network byte order.
 
 The following is a real-life example of one complete top-level parcel and its contents:
 
-+---- 2 ----+---------- 6 ----------+------- length = 9 bytes -------+
-|   1A 01   |   00 00 00 00 00 09   |   4C 41 43 49 20 76 30 2e 39   |
-+-----------+-----------------------+--------------------------------+
-  "made by"     length is 9 bytes              "LACI v0.9"
++---- 2 ----+------- 4 -------+------- length = 9 bytes -------+
+|   1A 01   |   00 00 00 09   |   4C 41 43 49 20 76 30 2e 39   |
++-----------+-----------------+--------------------------------+
+  "made by"  length is 9 bytes           "LACI v0.9"
 
 This particular parcel represents the TLV 3-tuple [0x1A01, 9, "LACI v0.9"].  In this case, a type of 0x1A01 is the "made by" parcel - it describes the software that was used to to generate this TIP stream.  The 6-bye length value declares that the content of this parcel is 9 bytes long, and correspondingly the content string, "LACI v0.9", is 9 bytes.  The length field does not include the width of the type or length fields, and zero is a valid length.
 

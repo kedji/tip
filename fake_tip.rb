@@ -25,7 +25,7 @@ end
 
 # create a parcel of the given data and type
 def parcel(type, payload)
-  "#{(type / 256).chr}#{(type % 256).chr}#{nbo(payload.length, 6)}#{payload}"
+  "#{(type / 256).chr}#{(type % 256).chr}#{nbo(payload.length, 4)}#{payload}"
 end
 
 # create an Event Structure entry
@@ -59,8 +59,6 @@ File.open('fake.tip', 'w') do |fake|
   e_struct << structure(2, [1, 2], [2, 2], [3, 0], [4, 32], [5, 64])
   e_struct << structure(3, [1, 2], [2, 2], [3, 0])
   fake.print parcel(0x1ae5, e_struct)
-e_struct.each_byte { |b| print("%02x " % b) } ; puts ""
-parcel(0x1ae5, e_struct).each_byte { |b| print("%02x " % b) } ; puts ""
 
   # Make a fake "flow_start" event
   base_event =  attr(1, 2, 0x0a00007b)
