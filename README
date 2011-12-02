@@ -202,8 +202,6 @@ This parcel contains a hash map that associates attribute keys to attribute valu
    | attr type |  attr length  |   attr content   | (value)  ...
    +-----------+---------------+------------------+
 
-This parcel contains a 
-
 7 - Recommended Parcel Ordering
 
 As described earlier, parcels can be written and read independently and do not formally depend on each other.  An event serialization system may only include Content Event parcels and ignore all the descriptive parcel types (they may in fact be redundant in some systems).
