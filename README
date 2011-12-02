@@ -30,32 +30,42 @@ This particular parcel represents the TLV 3-tuple [0x1A01, 9, "LACI v0.9"].  In 
 
 4.1 - Attribute Type (attr_type)
 
-Attribute Type structures are used to describe the nature of an attribute within the defintion of an event or an instance of that event.  Attribute type structures are two bytes:
+The attr_type is a single byte that describes the structure and the interpretation of the attribute.  There are three basic attribute types:  integer data, string, and TIP.
+
++---- 1 ----+
+| attr type |
++-----------+
+
+Integer data is described by types 0-63, binary + string data is described by types 64-127, and TIP-specific attributes are defined by types 128-191.  In other words, (attr_type LSB >> 6) == 0 if integer data, 1 if string data, and 2 if TIP data.  The following list specifies interpretation more precisely:
+0x00 - This attribute is an unsigned integer.
+0x01 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
+0x02 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
+0x03 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
+0x04 - This attribute is a signed integer in 2's compliment.
+0x05 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
+0x40 - This attribute is a raw binary string.
+0x41 - This attribute is a human-readable ascii string.
+0x42 - This attribute is a 16-byte binary representation an IPv6 address (NBO).
+0x43 - This attribute is an ascii string containing an error message.
+0x80 - This attribute is a nested TIP Parcel.
+
+4.2 - Attribute Description (attr_desc)
+
+Attribute Description structures are used to describe the nature of an attribute within the defintion of an event or an instance of that event.  Attribute type structures are two bytes:
 
 +------ 2 ------+
-|   attr type   |
+|   attr desc   |
 +---------------+
 
-The first (most significant) byte is used by some parcels and is absent from others.  When present, the most significant byte describes the presence of an attribute within an event.  The MSB values have the following meanings:
+The first (most significant) byte describes the presence of an attribute within an event.  The MSB values have the following meanings:
 
 0x00 - This attribute may be present in this event or it may not be; it can appear either 0 or 1 times per event.
 0x01 - This attribute is always present exactly once in this event.
 0x02 - This attribute may appear 0, 1, or more times in this event.
 
-The second (least significant) byte is always present, and it describes the structure and the interpretation of the attribute.  There are three basic attribute types:  integer data, ascii string, and binary data.
+The second byte (least significant) is always an attr_type.
 
-Integer data is described by types 0-31, human-readable ascii data is described by types 32-63, and binary data is described by types 64-95.  In other words, (attr_type LSB >> 5) == 0 if integer data, 1 if string data, and 2 if binary data.  The following list specifies interpretation more precisely:
- 0 - This attribute is an unsigned integer.
- 1 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
- 2 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
- 3 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
- 4 - This attribute is a signed integer in 2's compliment.
- 5 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
-32 - This attribute is a human-readable ascii string.
-33 - This attribute is an ascii string representing an IPv6 address.
-64 - This attribute is binary data.
-
-4.2 - Event ID (event_id)
+4.3 - Event ID (event_id)
 
 The Event ID is a two-byte field that uniquely identifies an event by its surrogate ID.
 
@@ -65,7 +75,7 @@ The Event ID is a two-byte field that uniquely identifies an event by its surrog
 
 These IDs can be mapped to human-readable names using the Event Dictionary parcel.
 
-4.3 - Attribute ID (attr_id)
+4.4 - Attribute ID (attr_id)
 
 The Attribute ID is a two-byte field that uniquely identifies an attribute by its surrogate ID.
 
@@ -95,11 +105,11 @@ Contains a 2-byte "event id" followed by a concatenation of quasi-TLVs describin
 |   event id    |  +
 +---------------+ 
 
-+------ 2 ------+------ 2 ------+---------- 4 ----------+-- "length" --+
-|    attr id    |   attr type   |  attr value's length  |  attr value  | ...
-+---------------+---------------+-----------------------+--------------+
++------ 2 ------+---- 1 ----+---------- 4 ----------+-- "length" --+
+|    attr id    | attr type |  attr value's length  |  attr value  | ...
++---------------+-----------+-----------------------+--------------+
 
-The "attr type" is a 2-byte field describing the nature of the provided value.  
+The "attr type" is a 1-byte field describing the nature of the provided value.  
 
 String data is not allowed to include a terminating NULL character, and the consumer should never depend on it being present.
 
@@ -156,7 +166,7 @@ Integer attributes that can be converted to a string (0x00000008) are not necess
 This parcel describes the structure of events that can be serialized in this TIP stream.  It is composed of a concatenation of sub-TLVs:
 
 +------ 2 ------+------ 2 ------+     +------ 2 ------+------ 2 ------+ 
-|   event id    | attrlist size |  +  |    attr id    |   attr type   | ...
+|   event id    | attrlist size |  +  |    attr id    |   attr desc   | ...
 +---------------+---------------+     +---------------+---------------+
 
 The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_id, attr_type ] tuples.  That is, the number of distinct attributes that can be raised by the described event is "attrlist size" / 4. 
@@ -164,7 +174,37 @@ The "attrlist size" describes the size, in bytes, of the list of 4-byte [ attr_i
 Example:  An attribute with an ID of 15 contains string data and will occur at most once per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x0F\x00\x20".
 Example:  An attribute with an ID of 20 contains time_t data and may occur 0 or more times per event.  The [ attr_id, attr_type ] tuple will get encoded as "\x00\x14\x02\x03".
 
-6 - Recommended Parcel Ordering
+6 - Generic Data Structures in TIP
+
+TIP can also serialize generic data structures.  These parcels have no particular meaning in and of themselves, and exist only as containers.
+
+6.1 - List
+
+This parcel merely contains a list of attributes, similar to an array.  The "list length" field describes the number of elements, not the number of bytes.
+
++------ 4 ------+     +---- 1 ----+------ 4 ------+---- "length" ----+
+|  list length  |  +  | attr type |  attr length  |   attr content   | ...
++---------------+     +-----------+---------------+------------------+
+
+6.2 - Hash Map
+
+This parcel contains a hash map that associates attribute keys to attribute values.  The "hash length" describes the number of contained key/value pairs.
+
++------ 4 ------+ 
+|  list length  |  +
++---------------+
+
+   +---- 1 ----+------ 4 ------+---- "length" ----+
+   | attr type |  attr length  |   attr content   | (key)  +
+   +-----------+---------------+------------------+
+
+   +---- 1 ----+------ 4 ------+---- "length" ----+
+   | attr type |  attr length  |   attr content   | (value)  ...
+   +-----------+---------------+------------------+
+
+This parcel contains a 
+
+7 - Recommended Parcel Ordering
 
 As described earlier, parcels can be written and read independently and do not formally depend on each other.  An event serialization system may only include Content Event parcels and ignore all the descriptive parcel types (they may in fact be redundant in some systems).
 

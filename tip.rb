@@ -1,13 +1,12 @@
 #!/usr/bin/env ruby
 
-# This is a demo program that parses Traffic Inspection Parcel (TIP) files and
-# raises Hash objects on contained events.
+# This application provides full TIP parsing and serialization functionality.
 
 require 'ipaddr'
 
 class TIP
 
-  def initialize(&cb)
+  def initialize()
     @made_by = nil
     @event_dict = {}
     @attr_dict = {}
@@ -15,19 +14,31 @@ class TIP
     @attr_translations = {}
     @event_structures = []
     @array_elements = []
-    @callback = cb
+    @callback = nil
     @stream = ""
-    @verbose = false
   end
 
   attr_reader :callback, :made_by, :event_dict, :attr_dict, :verbose
   attr_writer :callback, :verbose
 
   # Convert a string in Network Byte Order to an unsigned integer
-  def nbo(str)
+  def ntoi(str)
     ret = 0
     str.each_byte { |byte| ret = (ret << 8) + byte }
     ret
+  end
+
+  # Convert an unsigned integer into the smallest possible ntoi string, or
+  # one exactly the specified size.  The value of 0 will always take at least
+  # one byte.
+  def iton(num, bytes = 0)
+    str = ''
+    loop do
+      str << (num & 0xFF).chr
+      bytes -= 1
+      num >>= 8
+      break if num == 0 or bytes == 0
+    end
   end
 
   # Push TIP stream data here, the callback function will get called on
@@ -36,9 +47,9 @@ class TIP
     @stream << parcel_data
 
     # Loop through as many complete parcels as we have
-    while @stream.length >= 6 and @stream.length - nbo(@stream[2, 4]) >= 8
-      type = nbo(@stream[0, 2])
-      length = nbo(@stream[2, 4])
+    while @stream.length >= 6 and @stream.length - ntoi(@stream[2, 4]) >= 8
+      type = ntoi(@stream[0, 2])
+      length = ntoi(@stream[2, 4])
       value = @stream[6, length]
       @stream[0, 6 + length] = ''
 
@@ -68,7 +79,7 @@ class TIP
   end
 
   def content_event(data)
-    event_id = nbo(data[0, 2])
+    event_id = ntoi(data[0, 2])
     
     # Get the event name if possible, otherwise just use the numeric id
     event_name = @event_dict[event_id] || event_id.to_s
@@ -77,33 +88,33 @@ class TIP
     event = new_event_object(event_id)
 
     # Now get the attribute values
-    while data.length >= 8 and data.length - nbo(data[4, 4]) >= 8
-      length = nbo(data[4, 4])
-      attr_id = nbo(data[0, 2])
+    while data.length >= 7 and data.length - ntoi(data[3, 4]) >= 7
+      length = ntoi(data[3, 4])
+      attr_id = ntoi(data[0, 2])
       attr_name = (@attr_dict[attr_id] || attr_id).to_s.to_sym
-      attr_val = data[8, length]
-      attr_type = data[3]
+      attr_val = data[7, length]
+      attr_type = data[2].ord
 
       # Convert the attribute based on its type
       case attr_type
         when 0
-          attr_val = nbo(attr_val)
+          attr_val = ntoi(attr_val)
         when 1
-          attr_val = [ false, true ][nbo(attr_val)]
+          attr_val = [ false, true ][ntoi(attr_val)]
         when 2
-          attr_val = IPAddr.new(nbo(attr_val), 2)
+          attr_val = IPAddr.new(ntoi(attr_val), 2)
         when 3
-          attr_val = Time.at(nbo(attr_val))
+          attr_val = Time.at(ntoi(attr_val))
         when 4
-          attr_val = nbo(attr_val)
+          attr_val = ntoi(attr_val)
           # ADD CODE HERE
         when 5
           # Remember, not all "code" objects have attr translation entries
           if (@attr_translations[attr_id])
-            attr_val = @attr_translations[attr_id][nbo(attr_val)] ||
-                       nbo(attr_val)
+            attr_val = @attr_translations[attr_id][ntoi(attr_val)] ||
+                       ntoi(attr_val)
           else
-            attr_val = nbo(attr_val)
+            attr_val = ntoi(attr_val)
           end
         when 33
           attr_val = IPAddr.new(attr_val, 10)
@@ -121,15 +132,15 @@ class TIP
       else
         event[attr_name] = attr_val
       end
-      data[0, 8 + length] = ''
+      data[0, 7 + length] = ''
     end
     @callback.call(event) if @callback
   end
 
   def attribute_dictionary(value)
-    while value.length >= 4 and value.length - nbo(value[2, 2]) >= 4
-      @attr_dict[nbo(value[0, 2])] = value[4, nbo(value[2, 2])]
-      value[0, 4 + nbo(value[2, 2])] = ''
+    while value.length >= 4 and value.length - ntoi(value[2, 2]) >= 4
+      @attr_dict[ntoi(value[0, 2])] = value[4, ntoi(value[2, 2])]
+      value[0, 4 + ntoi(value[2, 2])] = ''
     end
     if @verbose
       puts "\n-- Attribute Dictionary: --"
@@ -138,9 +149,9 @@ class TIP
   end
 
   def event_dictionary(value)
-    while value.length >= 4 and value.length - nbo(value[2, 2]) >= 4
-      @event_dict[nbo(value[0, 2])] = value[4, nbo(value[2, 2])]
-      value[0, 4 + nbo(value[2, 2])] = ''
+    while value.length >= 4 and value.length - ntoi(value[2, 2]) >= 4
+      @event_dict[ntoi(value[0, 2])] = value[4, ntoi(value[2, 2])]
+      value[0, 4 + ntoi(value[2, 2])] = ''
     end
     if @verbose
       puts "\n-- Event Dictionary: --"
@@ -150,8 +161,8 @@ class TIP
 
   def attribute_characteristics(value)
     while value.length >= 6
-      attr_id = nbo(value[0, 2])
-      attr_chars = nbo(value[2, 4])
+      attr_id = ntoi(value[0, 2])
+      attr_chars = ntoi(value[2, 4])
       value[0, 6] = ''
       @attr_characteristics[attr_id] = characteristic_deflag(attr_chars)
     end
@@ -165,12 +176,12 @@ class TIP
   end
 
   def attribute_translator(value)
-    attr_id = nbo(value[0, 2])
+    attr_id = ntoi(value[0, 2])
     value[0, 2] = ''
     trans_hash = {}
-    while value.length > 6 and nbo(value[4, 2]) + 6 <= value.length
-      attr_value = nbo(value[0, 4])
-      attr_string = value[6, nbo(value[4, 2])]
+    while value.length > 6 and ntoi(value[4, 2]) + 6 <= value.length
+      attr_value = ntoi(value[0, 4])
+      attr_string = value[6, ntoi(value[4, 2])]
       value[0, 6 + attr_string.length] = ''
       trans_hash[attr_value] = attr_string
     end
@@ -185,19 +196,19 @@ class TIP
   # Event structure depends on the event and attribute dictionaries
   def event_structures(value)
     event_ids = []
-    while value.length > 4 and value.length >= 4 + nbo(value[2,2])
-      event_id = nbo(value[0, 2])
+    while value.length > 4 and value.length >= 4 + ntoi(value[2,2])
+      event_id = ntoi(value[0, 2])
       event_ids << event_id
       e_struct = [ :event_name, :annotation ]
       multi = [ :annotation ]
-      (nbo(value[2, 2]) / 4).times do |i|
-        attr_name = @attr_dict[nbo(value[4 * i + 4, 2])]
+      (ntoi(value[2, 2]) / 4).times do |i|
+        attr_name = @attr_dict[ntoi(value[4 * i + 4, 2])]
         e_struct << attr_name.to_sym
-        multi << attr_name.to_sym if nbo(value[4 * i + 6, 1]) == 2
+        multi << attr_name.to_sym if ntoi(value[4 * i + 6, 1]) == 2
       end
       @event_structures[event_id] = Struct.new(*e_struct)
       @array_elements[event_id] = multi
-      value[0, nbo(value[2, 2]) + 4] = ''
+      value[0, ntoi(value[2, 2]) + 4] = ''
     end
     if @verbose
       puts "\n-- Event Structures --"
@@ -231,7 +242,8 @@ end  # of class TIP
 
 # Main program
 if $0 == __FILE__
-  tip_stream = TIP.new { |event| puts "#{event.inspect}\n\n" }
+  tip_stream = TIP.new
+  tip_stream.callback = Proc.new { |event| puts "#{event.inspect}\n\n" }
   if ARGV.empty?
     puts "Usage: #{$0} <tip> [tip...]"
     Kernel.exit(1)

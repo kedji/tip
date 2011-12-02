@@ -11,7 +11,7 @@ end
 
 # create a fake event attribute
 def attr(id, type_code, val)
-  type = nbo(type_code, 2)
+  type = nbo(type_code, 1)
   if val.class <= Integer
     val = nbo(val, 8)
   end
@@ -68,8 +68,8 @@ File.open('fake.tip', 'w') do |fake|
 
   # Make a fake happenstance event
   event = base_event.dup
-  event << attr(4, 32, 'human-readable protocol was used')
-  event << attr(5, 64, 'this attribute is binary content')
+  event << attr(4, 0x41, 'human-readable protocol was used')
+  event << attr(5, 0x40, 'this attribute is binary content')
   fake.print parcel(0x1ace, nbo(2, 2) + event)
 
   # Make a fake end event
