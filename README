@@ -47,7 +47,8 @@ Integer data is described by types 0-63, binary + string data is described by ty
 0x41 - This attribute is a human-readable ascii string.
 0x42 - This attribute is a 16-byte binary representation an IPv6 address (NBO).
 0x43 - This attribute is an ascii string containing an error message.
-0x80 - This attribute is a nested TIP Parcel.
+0x80 - This attribute is a nested TIP list.
+0x81 - This attribute is a nested TIP hash map.
 
 4.2 - Attribute Description (attr_desc)
 
