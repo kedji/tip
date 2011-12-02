@@ -176,9 +176,9 @@ Example:  An attribute with an ID of 20 contains time_t data and may occur 0 or 
 
 6 - Generic Data Structures in TIP
 
-TIP can also serialize generic data structures.  These parcels have no particular meaning in and of themselves, and exist only as containers.
+TIP can also serialize generic data structures into an attribute.
 
-6.1 - List (0x1A15)
+6.1 - List
 
 This parcel merely contains a list of attributes, similar to an array.  The "list length" field describes the number of elements, not the number of bytes.
 
@@ -186,7 +186,7 @@ This parcel merely contains a list of attributes, similar to an array.  The "lis
 |  list length  |  +  | attr type |  attr length  |   attr content   | ...
 +---------------+     +-----------+---------------+------------------+
 
-6.2 - Hash Map (0x1AA5)
+6.2 - Hash Map
 
 This parcel contains a hash map that associates attribute keys to attribute values.  The "hash length" describes the number of contained key/value pairs.
 
