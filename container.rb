@@ -76,7 +76,7 @@ module TIP
     ret = []
     pos = 4
     while pos < str.length do
-      t, l, v = tip_to_attr(str, pos)
+      t, l, v = tip_to_attr_parse(str, pos)
       ret << v
       pos += l
     end
@@ -88,9 +88,9 @@ module TIP
     ret = {}
     pos = 4
     while pos < str.length do
-      t, l, key = tip_to_attr(str, pos)
+      t, l, key = tip_to_attr_parse(str, pos)
       pos += l
-      t, l, value = tip_to_attr(str, pos)
+      t, l, value = tip_to_attr_parse(str, pos)
       pos += l
       ret[key] = value
     end
