@@ -26,11 +26,18 @@ module TIP
   #   +---- 1 ----+------ 4 ------+---- "length" ----+
   #   | attr type |  attr length  |   attr content   |
   #   +-----------+---------------+------------------+
-  # Returns an array [ type, length, value ]
+  # If you want a method that's friendlier to parsing, call tip_to_attr_parse(),
+  # which returns the entire TLV and accepts an offset into the given string.
+  def TIP.tip_to_attr(str)
+    t, l, v = tip_to_attr_parse(str, 0)
+    v
+  end
+
+  # Same as the above method, but returns an array [ type, length, value ]
   # The returned length attribute describes the amount of data that can be
   # skipped to get to the next attribute.  You can also provide an offset into
   # the string where you'd like parsing to begin.
-  def tip_to_attr(str, offset = 0)
+  def TIP.tip_to_attr_parse(str, offset = 0)
     attr_type = str[offset].ord
     length = str[offset + 1, 4].unpack("N").first
     raise "invalid TLV length" if str.length < length + 5 + offset
@@ -65,7 +72,7 @@ module TIP
   end
 
   # Convert a TIP list into a Ruby array
-  def tip_to_array(str)
+  def TIP.tip_to_array(str)
     ret = []
     pos = 4
     while pos < str.length do
@@ -77,7 +84,7 @@ module TIP
   end
 
   # Convert a TIP hash into a Ruby hash
-  def tip_to_hash(str)
+  def TIP.tip_to_hash(str)
     ret = {}
     pos = 4
     while pos < str.length do
@@ -92,7 +99,7 @@ module TIP
 
   # Convert a Ruby object to a supported TIP attr type.  Will be returned as
   # a string in TLV format.
-  def attr_to_tip(obj)
+  def TIP.attr_to_tip(obj)
     attr_type = nil
     value = nil
     case obj
@@ -135,7 +142,7 @@ module TIP
   end
 
   # Convert a string in Network Byte Order to an unsigned integer
-  def ntoi(str)
+  def TIP.ntoi(str)
     ret = 0
     str.each_byte { |byte| ret = (ret << 8) + byte }
     ret
@@ -144,7 +151,7 @@ module TIP
   # Convert an unsigned integer into the smallest possible ntoi string, or
   # one exactly the specified size.  The value of 0 will always take at least
   # one byte.
-  def iton(num, bytes = 0)
+  def TIP.iton(num, bytes = 0)
     str = ''
     loop do
       str << (num & 0xFF).chr
@@ -157,7 +164,7 @@ module TIP
 
   # Convert an unsigned integer into the smallest possible NBO 2's compliment
   # string.
-  def neg_iton(num)
+  def TIP.neg_iton(num)
     str = ''
     bytes = ((Math.log(num.abs) / Math.log(2) + 1) / 8).ceil
     twos_comp = (num >= 0 ? num : 256**bytes + num)
