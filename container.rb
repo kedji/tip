@@ -62,7 +62,7 @@ module TIP
       when 0x42
         value = IPAddr.ntop(value)
       when 0x43
-        value = StadardError.new(value)
+        value = StandardError.new(value)
       when 0x80
         value = tip_to_array(value)
       when 0x81
