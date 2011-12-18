@@ -12,7 +12,7 @@ module TIP
     0x01, # an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
     0x02, # an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
     0x03, # an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
-    0x04, # a signed integer in 2's compliment.
+    0x04, # a signed integer, first bit represents sign.
     0x05, # an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
     0x40, # a raw binary string.
     0x41, # a human-readable ascii string.
@@ -54,9 +54,7 @@ module TIP
       when 0x03
         value = Time.at(ntoi(value))
       when 0x04
-        num = ntoi(value)
-        num -= (256**(value.length)) if value[0].ord >= 0x80
-        value = num
+        value = neg_ntoi(value)
       when 0x05
         value = ntoi(value)
       when 0x42
@@ -148,6 +146,21 @@ module TIP
     ret
   end
 
+  # Convert a string in Network Byte Order to a signed integer where the first
+  # bit represents sign.
+  def TIP.neg_ntoi(str)
+    return 0 if str.empty?
+    neg = false
+    ret = str[0].ord
+    if ret >= 0x80
+      ret -= 0x80
+      neg = true
+    end
+    str[1..-1].each_byte { |byte| ret = (ret << 8) + byte }
+    ret = 0 - ret if neg
+    ret
+  end
+
   # Convert an unsigned integer into the smallest possible ntoi string, or
   # one exactly the specified size.  The value of 0 will always take at least
   # one byte.
@@ -162,17 +175,13 @@ module TIP
     str.reverse
   end
 
-  # Convert an unsigned integer into the smallest possible NBO 2's compliment
-  # string.
+  # Convert an unsigned integer into the smallest possible NBO string with the
+  # first bit representing sign.
   def TIP.neg_iton(num)
-    str = ''
-    bytes = ((Math.log(num.abs) / Math.log(2) + 1) / 8).ceil
-    twos_comp = (num >= 0 ? num : 256**bytes + num)
-    bytes.times do
-      str << (twos_comp & 0xFF).chr
-      twos_comp >>= 8
-    end
-    str.reverse
+    str = iton(num.abs)
+    str = "\x00" + str if str[0].ord >= 0x80
+    str[0] = (str[0].ord | 0x80).chr if num < 0
+    str
   end
 
 end

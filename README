@@ -41,7 +41,7 @@ Integer data is described by types 0-63, binary + string data is described by ty
 0x01 - This attribute is an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
 0x02 - This attribute is an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
 0x03 - This attribute is an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
-0x04 - This attribute is a signed integer in 2's compliment.
+0x04 - This attribute is a signed integer where the first bit represents the sign (1 for negative, 0 for positive).
 0x05 - This attribute is an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
 0x40 - This attribute is a raw binary string.
 0x41 - This attribute is a human-readable ascii string.
