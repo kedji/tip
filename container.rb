@@ -11,7 +11,7 @@ module TIP
     0x00, # an unsigned integer.
     0x01, # an unsigned integer representing a boolean value: 0 == false/no, 1 == true/yes
     0x02, # an unsigned integer representing an IPv4 address (ie, 0x01020304 == 1.2.3.4)
-    0x03, # an unsigned time_t integer.  It represents the number of seconds elapsed since the Unix epoch
+    0x03, # an unsigned integer representing the number of nanoseconds elapsed since the Unix epoch
     0x04, # a signed integer, first bit represents sign.
     0x05, # an unsigned integer code that can be converted into a string using the Attribute String Translator TIP.
     0x40, # a raw binary string.
@@ -52,7 +52,7 @@ module TIP
       when 0x02
         value = IPAddr.ntop(value)
       when 0x03
-        value = Time.at(ntoi(value))
+        value = Time.at(ntoi(value).to_f / 1000000000)
       when 0x04
         value = neg_ntoi(value)
       when 0x05
@@ -116,7 +116,7 @@ module TIP
         value = obj.hton
         attr_type = (obj.ipv4? ? 0x02 : 0x42)
       when Time
-        value = iton(obj.to_i)
+        value = iton(obj.to_i * 1000000000 + obj.tv_nsec)
         attr_type = 0x03
       when String           # binary and human readable
         value = obj
